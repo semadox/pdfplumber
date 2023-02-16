@@ -1,5 +1,6 @@
 import re
 from functools import lru_cache
+from inspect import get_annotations
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -26,7 +27,22 @@ from pdfminer.pdfinterp import PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 
 from . import utils
-from ._typing import T_bbox, T_num, T_obj, T_obj_list
+from ._typing import (
+    Char,
+    Curve,
+    Image,
+    Line,
+    PDFObject,
+    Rect,
+    T_bbox,
+    T_num,
+    T_obj,
+    T_obj_list,
+    TextBoxHorizontal,
+    TextLineHorizontal,
+    TextLineVertical,
+    TextBoxVertical,
+)
 from .container import Container
 from .table import T_table_settings, Table, TableFinder, TableSettings
 from .utils import resolve_all
@@ -34,36 +50,18 @@ from .utils.text import TextMap
 
 lt_pat = re.compile(r"^LT")
 
+# Get all possible attributes from TypedDicts.
+# TODO this probably should be a loop doing it from the base class to the child classes
 ALL_ATTRS = set(
-    [
-        "adv",
-        "height",
-        "linewidth",
-        "pts",
-        "size",
-        "srcsize",
-        "width",
-        "x0",
-        "x1",
-        "y0",
-        "y1",
-        "bits",
-        "matrix",
-        "upright",
-        "font",
-        "fontname",
-        "name",
-        "text",
-        "imagemask",
-        "colorspace",
-        "evenodd",
-        "fill",
-        "non_stroking_color",
-        "path",
-        "stream",
-        "stroke",
-        "stroking_color",
-    ]
+    get_annotations(Char).keys()
+    | get_annotations(Curve).keys()
+    | get_annotations(Rect).keys()
+    | get_annotations(Line).keys()
+    | get_annotations(Image).keys()
+    | get_annotations(TextBoxHorizontal).keys()
+    | get_annotations(TextLineHorizontal).keys()
+    | get_annotations(TextLineVertical).keys()
+    | get_annotations(TextBoxVertical).keys()
 )
 
 
@@ -188,7 +186,7 @@ class Page(Container):
         return [a for a in self.annots if a["uri"] is not None]
 
     @property
-    def objects(self) -> Dict[str, T_obj_list]:
+    def objects(self) -> Dict[str, PDFObject]:
         if hasattr(self, "_objects"):
             return self._objects
         self._objects: Dict[str, T_obj_list] = self.parse_objects()
@@ -197,7 +195,7 @@ class Page(Container):
     def point2coord(self, pt: Tuple[T_num, T_num]) -> Tuple[T_num, T_num]:
         return (pt[0], self.height - pt[1])
 
-    def process_object(self, obj: LTItem) -> T_obj:
+    def process_object(self, obj: LTItem) -> PDFObject:
         kind = re.sub(lt_pat, "", obj.__class__.__name__).lower()
 
         def process_attr(item: Tuple[str, Any]) -> Optional[Tuple[str, Any]]:
@@ -209,6 +207,35 @@ class Page(Container):
                 return None
 
         attr = dict(filter(None, map(process_attr, obj.__dict__.items())))
+
+        if kind == "char":
+            attr = Char(attr)
+        elif kind == "rect":
+            attr = Rect(attr)
+        elif kind == "curve":
+            attr = Rect(attr)
+        elif kind == "line":
+            attr = Line(attr)
+        elif kind == "image":
+            attr = Image(attr)
+        elif kind == "textboxhorizontal":
+            attr = TextBoxHorizontal(attr)
+        elif kind == "textlinehorizontal":
+            attr = TextLineHorizontal(attr)
+        elif kind == "textlinevertical":
+            attr = TextLineVertical(attr)
+        elif kind == "textboxvertical":
+            attr = TextBoxVertical(attr)
+        elif kind == "figure":
+            attr = PDFObject(attr)
+        elif kind == "anno":
+            # TODO: should we ignore annotations
+            pass
+        else:
+            from pprint import pprint
+
+            pprint(attr)
+            assert False, f"what ({kind})"
 
         attr["object_type"] = kind
         attr["page_number"] = self.page_number

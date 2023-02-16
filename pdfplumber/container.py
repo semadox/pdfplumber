@@ -5,7 +5,7 @@ from itertools import chain
 from typing import Any, Dict, List, Optional, Set, TextIO
 
 from . import utils
-from ._typing import T_obj, T_obj_list
+from ._typing import Curve, Line, Rect, T_obj, T_obj_list
 from .convert import CSV_COLS_REQUIRED, CSV_COLS_TO_PREPEND, Serializer
 
 
@@ -30,31 +30,31 @@ class Container(object):
                 delattr(self, p)
 
     @property
-    def rects(self) -> T_obj_list:
+    def rects(self) -> List[Rect]:
         return self.objects.get("rect", [])
 
     @property
-    def lines(self) -> T_obj_list:
+    def lines(self) -> List[Line]:
         return self.objects.get("line", [])
 
     @property
-    def curves(self) -> T_obj_list:
+    def curves(self) -> List[Curve]:
         return self.objects.get("curve", [])
 
     @property
-    def images(self) -> T_obj_list:
+    def images(self) -> List[Image]:
         return self.objects.get("image", [])
 
     @property
-    def chars(self) -> T_obj_list:
+    def chars(self) -> List[Char]:
         return self.objects.get("char", [])
 
     @property
-    def textboxverticals(self) -> T_obj_list:
+    def textboxverticals(self) -> List[TextBoxVerticals]:
         return self.objects.get("textboxvertical", [])
 
     @property
-    def textboxhorizontals(self) -> T_obj_list:
+    def textboxhorizontals(self) -> List[TextBoxHorizontal]:
         return self.objects.get("textboxhorizontal", [])
 
     @property
@@ -104,7 +104,6 @@ class Container(object):
         precision: Optional[int] = None,
         indent: Optional[int] = None,
     ) -> Optional[str]:
-
         data = self.to_dict(object_types)
 
         serialized = Serializer(
